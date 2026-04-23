@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>超商雷達 🏪</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080c10; --sidebar:rgba(8,12,16,0.97); --border:rgba(255,255,255,0.07);
+  --text:#e8eaf0; --muted:#5a6275;
+  --c7:#ff3b30; --cf:#30d158; --ch:#ffd60a; --co:#0a84ff;
+  --card:rgba(255,255,255,0.04); --card-h:rgba(255,255,255,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+/* 加入 height:100vh 作為舊版瀏覽器或特定 App 內建瀏覽器的相容備案 */
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex}
+
+/* ── SIDEBAR ── */
+#sidebar{width:310px;min-width:310px;height:100dvh;background:var(--sidebar);border-right:1px solid var(--border);backdrop-filter:blur(24px);display:flex;flex-direction:column;z-index:100;overflow:hidden}
+#shd{padding:22px 20px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;line-height:1;color:#fff}
+.logo span{color:var(--c7)}
+.sub{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:1.5px;text-transform:uppercase}
+#rc{margin-top:14px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:var(--border);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--c7);cursor:pointer;box-shadow:0 0 8px rgba(255,59,48,0.5)}
+#rv{color:var(--text);font-weight:700;min-width:46px;text-align:right;font-size:12px}
+
+/* ── FILTERS ── */
+#filters{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.fb{padding:5px 11px;border-radius:20px;font-size:11px;font-weight:700;font-family:'Noto Sans TC',sans-serif;border:1.5px solid transparent;cursor:pointer;transition:all .2s;background:var(--card);color:var(--muted)}
+.fb:hover{background:var(--card-h);color:var(--text)}
+.fb.on[data-c=all]{border-color:#fff;color:#fff;background:rgba(255,255,255,0.08)}
+.fb.on[data-c="7eleven"]{border-color:var(--c7);color:var(--c7);background:rgba(255,59,48,0.1)}
+.fb.on[data-c=familymart]{border-color:var(--cf);color:var(--cf);background:rgba(48,209,88,0.1)}
+.fb.on[data-c=hilife]{border-color:var(--ch);color:var(--ch);background:rgba(255,214,10,0.1)}
+.fb.on[data-c=ok]{border-color:var(--co);color:var(--co);background:rgba(10,132,255,0.1)}
+
+/* ── LIST ── */
+#lh{padding:10px 20px 6px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+#sc{color:var(--text);letter-spacing:0;text-transform:none;font-weight:700}
+#sl{flex:1;overflow-y:auto;padding:4px 10px 60px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+#sl::-webkit-scrollbar{width:3px}
+#sl::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.si{padding:11px 10px;border-radius:10px;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:10px;margin-bottom:3px;border:1px solid transparent}
+.si:hover{background:var(--card-h)}
+.si.sel{background:var(--card-h);border-color:var(--border)}
+.sic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;line-height:1.1;text-align:center;flex-shrink:0}
+.ic7{background:rgba(255,59,48,0.15);color:var(--c7);border:1px solid rgba(255,59,48,0.25)}
+.icf{background:rgba(48,209,88,0.15);color:var(--cf);border:1px solid rgba(48,209,88,0.25)}
+.ich{background:rgba(255,214,10,0.15);color:var(--ch);border:1px solid rgba(255,214,10,0.25)}
+.ico{background:rgba(10,132,255,0.15);color:var(--co);border:1px solid rgba(10,132,255,0.25)}
+.icx{background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border)}
+.inf{flex:1;min-width:0}
+.nm{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:5px}
+.na{width:30px;height:30px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;text-decoration:none;flex-shrink:0}
+.na:hover{background:var(--card-h);color:var(--text)}
+
+/* ── MAP ── */
+#mc{flex:1;position:relative}
+#map{width:100%;height:100%;background:#080c10}
+#mctl{position:absolute;top:14px;right:14px;z-index:50;display:flex;flex-direction:column;gap:8px}
+.mb{width:42px;height:42px;border-radius:12px;background:rgba(8,12,16,0.9);backdrop-filter:blur(12px);border:1px solid var(--border);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.mb:hover{background:rgba(255,255,255,0.1)}
+#sta{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(8,12,16,0.9);backdrop-filter:blur(12px);border:1px solid var(--border);padding:7px 16px;border-radius:20px;font-size:12px;color:var(--muted);z-index:50;white-space:nowrap;transition:opacity .3s;pointer-events:none}
+
+/* ── POPUP ── */
+#pop{position:absolute;bottom:18px;left:50%;transform:translateX(-50%) translateY(160px);width:min(380px,calc(100vw - 32px));background:rgba(10,14,22,0.97);backdrop-filter:blur(24px);border:1px solid var(--border);border-radius:18px;padding:20px 20px 20px;z-index:50;transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 24px 64px rgba(0,0,0,0.6)}
+#pop.show{transform:translateX(-50%) translateY(0)}
+#pcl{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#pcl:hover{background:var(--card-h);color:var(--text)}
+#pbg{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:10px;letter-spacing:.5px}
+#pnm{font-size:20px;font-weight:900;line-height:1.2;margin-bottom:5px}
+#pad{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.pac{display:flex;gap:10px}
+#bgg{flex:1;padding:12px;border-radius:12px;color:white;font-size:14px;font-weight:700;font-family:'Noto Sans TC',sans-serif;border:none;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .2s;letter-spacing:.5px}
+#bgg:hover{opacity:.85}
+#bap{padding:12px 16px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;text-decoration:none;transition:background .2s;white-space:nowrap;font-weight:500;font-family:'Noto Sans TC',sans-serif}
+#bap:hover{background:var(--card-h)}
+
+/* ── LOADING ── */
+#ld{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s}
+#ld.done{opacity:0;pointer-events:none}
+.ll{font-family:'Bebas Neue',sans-serif;font-size:56px;letter-spacing:4px;color:#fff}
+.ll span{color:var(--c7)}
+.dots{display:flex;gap:7px}
+.dot{width:9px;height:9px;border-radius:50%;animation:bo 1.4s infinite ease-in-out}
+.dot:nth-child(1){background:var(--c7)}
+.dot:nth-child(2){background:var(--cf);animation-delay:.2s}
+.dot:nth-child(3){background:var(--ch);animation-delay:.4s}
+@keyframes bo{0%,80%,100%{transform:scale(.3);opacity:.3}40%{transform:scale(1);opacity:1}}
+.lt{font-size:13px;color:var(--muted);letter-spacing:.5px;text-align:center;max-width:260px}
+
+/* ── ERROR BANNER ── */
+#err{display:none;position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:min(400px,calc(100vw - 32px));background:rgba(255,59,48,0.12);border:1px solid rgba(255,59,48,0.3);border-radius:14px;padding:14px 18px;z-index:49;font-size:13px;color:#ff6b63;line-height:1.6}
+#err b{display:block;font-size:14px;margin-bottom:4px;color:var(--c7)}
+#err-retry{margin-top:10px;padding:8px 16px;border-radius:8px;background:var(--c7);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:'Noto Sans TC',sans-serif}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  body{flex-direction:column}
+  /* 手機版 CSS 加入 max-height 備案 */
+  #sidebar{width:100%;min-width:100%;height:auto;max-height:46vh;max-height:46dvh;border-right:none;border-bottom:1px solid var(--border)}
+  #sl{padding-bottom:20px}
+  #pop,#err{bottom:10px}
+}
+</style>
+</head>
+<body>
+
+<div id="ld">
+  <div class="ll">超商<span>雷達</span></div>
+  <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+  <div class="lt" id="ltxt">正在取得您的位置…</div>
+</div>
+
+<div id="sidebar">
+  <div id="shd">
+    <div class="logo">超商<span>雷達</span></div>
+    <div class="sub">Convenience Store Navigator</div>
+    <div id="rc">
+      <span>搜尋範圍</span>
+      <input type="range" id="rs" min="300" max="3000" step="100" value="1000">
+      <span id="rv">1000m</span>
+    </div>
+  </div>
+  <div id="filters">
+    <button class="fb on" data-c="all">全部</button>
+    <button class="fb" data-c="7eleven">7-ELEVEN</button>
+    <button class="fb" data-c="familymart">全家</button>
+    <button class="fb" data-c="hilife">萊爾富</button>
+    <button class="fb" data-c="ok">OK超商</button>
+  </div>
+  <div id="lh"><span>附近超商</span><span id="sc">—</span></div>
+  <div id="sl"><div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">定位中…</div></div>
+</div>
+
+<div id="mc">
+  <div id="map"></div>
+  <div id="sta">📡 啟動中…</div>
+  <div id="mctl">
+    <button class="mb" id="blc" title="我的位置">📍</button>
+    <button class="mb" id="brf" title="重新搜尋">🔄</button>
+  </div>
+
+  <div id="err">
+    <b>⚠️ 搜尋失敗</b>
+    資料伺服器暫時無法連線。可能原因：網路問題、或伺服器繁忙。<br>
+    請稍後再試，或點下方按鈕重試。
+    <br><button id="err-retry">🔄 重新搜尋</button>
+  </div>
+
+  <div id="pop">
+    <button id="pcl">✕</button>
+    <div id="pbg"></div>
+    <div id="pnm"></div>
+    <div id="pad"></div>
+    <div class="pac">
+      <a id="bgg" target="_blank" rel="noopener">🗺️ Google 導航</a>
+      <a id="bap" target="_blank" rel="noopener">🍎 Apple Maps</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+
+const CHAINS = {
+  '7eleven':    {label:'7-ELEVEN', color:'#ff3b30', bg:'rgba(255,59,48,0.15)',   border:'rgba(255,59,48,0.3)',   em:'7',  cls:'ic7'},
+  'familymart': {label:'全家',     color:'#30d158', bg:'rgba(48,209,88,0.15)',   border:'rgba(48,209,88,0.3)',   em:'全', cls:'icf'},
+  'hilife':     {label:'萊爾富',   color:'#ffd60a', bg:'rgba(255,214,10,0.15)',  border:'rgba(255,214,10,0.3)',  em:'萊', cls:'ich'},
+  'ok':         {label:'OK超商',   color:'#0a84ff', bg:'rgba(10,132,255,0.15)', border:'rgba(10,132,255,0.3)', em:'OK', cls:'ico'},
+  'other':      {label:'超商',     color:'#8e8e93', bg:'rgba(142,142,147,0.1)', border:'rgba(142,142,147,0.2)',em:'🏪', cls:'icx'},
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let map, uMk, uLat=null, uLng=null;
+let stores=[], marks={}, filter='all', sel=null, radius=1000;
+
+// ── CHAIN DETECT ──────────────────────────────────────────────────────────────
+function getChain(name='') {
+  const n = name.toLowerCase();
+  if (/7-?eleven|7‑eleven|seven-?eleven/.test(n)) return '7eleven';
+  if (/全家|familymart|family\s?mart/.test(n))      return 'familymart';
+  if (/萊爾富|hilife|hi-life/.test(n))               return 'hilife';
+  if (/ok超商|ok\s?mart|okmart|來來/.test(n))        return 'ok';
+  return 'other';
+}
+
+// ── DISTANCE ─────────────────────────────────────────────────────────────────
+function calcDist(a,b,c,d) {
+  const R=6371000, dLat=(c-a)*Math.PI/180, dLng=(d-b)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLng/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
+}
+const fmtD = m => m>=1000 ? (m/1000).toFixed(1)+'km' : m+'m';
+
+// ── STATUS ────────────────────────────────────────────────────────────────────
+function setSta(msg) {
+  const el=document.getElementById('sta');
+  el.textContent=msg; el.style.opacity=msg?'1':'0';
+}
+function showErr(show) { document.getElementById('err').style.display=show?'block':'none'; }
+
+// ── MAP INIT ──────────────────────────────────────────────────────────────────
+function initMap(lat,lng) {
+  map = L.map('map',{zoomControl:false,attributionControl:false}).setView([lat,lng],16);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    maxZoom:19, subdomains:'abcd'
+  }).addTo(map);
+  L.control.attribution({prefix:'© OpenStreetMap © CartoDB'}).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  placeDot(lat,lng);
+  map.on('click', closePop);
+}
+
+function placeDot(lat,lng) {
+  if(uMk) uMk.remove();
+  uMk = L.marker([lat,lng],{icon:L.divIcon({
+    className:'',
+    html:`<div style="width:16px;height:16px;background:#fff;border-radius:50%;
+          border:3px solid #ff3b30;box-shadow:0 0 0 5px rgba(255,59,48,.25),0 0 18px rgba(255,59,48,.4)"></div>`,
+    iconSize:[16,16],iconAnchor:[8,8]
+  })}).addTo(map);
+}
+
+// ── OVERPASS FETCH WITH FALLBACK ──────────────────────────────────────────────
+async function overpassFetch(query, endpointIdx=0) {
+  if(endpointIdx >= OVERPASS_ENDPOINTS.length) throw new Error('All endpoints failed');
+  const url = OVERPASS_ENDPOINTS[endpointIdx];
+  setSta(`🔍 搜尋中… (伺服器 ${endpointIdx+1}/${OVERPASS_ENDPOINTS.length})`);
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(()=>ctrl.abort(), 12000); // 12s timeout
+    const res = await fetch(url, {
+      method: 'POST',
+      body: query,
+      signal: ctrl.signal,
+    });
+    clearTimeout(timeout);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e) {
+    console.warn(`Endpoint ${url} failed:`, e.message);
+    // Try next endpoint
+    return overpassFetch(query, endpointIdx+1);
+  }
+}
+
+// ── FETCH STORES ──────────────────────────────────────────────────────────────
+async function fetchStores() {
+  if(!uLat) return;
+  showErr(false);
+  document.getElementById('sc').textContent='搜尋中…';
+  document.getElementById('sl').innerHTML=
+    '<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">🔍 連線中，請稍候…</div>';
+
+  const q = `[out:json][timeout:20];
+(
+  node["shop"="convenience"](around:${radius},${uLat},${uLng});
+  way["shop"="convenience"](around:${radius},${uLat},${uLng});
+);
+out center body;`;
+
+  try {
+    const data = await overpassFetch(q);
+
+    stores = data.elements
+      .filter(e=>e.tags?.name)
+      .map(e=>({
+        id: e.id,
+        name: e.tags.name,
+        chain: getChain(e.tags.name),
+        lat: e.lat ?? e.center?.lat,
+        lng: e.lon ?? e.center?.lon,
+        address: [e.tags['addr:street'],e.tags['addr:housenumber']].filter(Boolean).join(' '),
+        phone: e.tags.phone||'',
+        hours: e.tags.opening_hours||'',
+      }))
+      .filter(s=>s.lat&&s.lng)
+      .sort((a,b)=>calcDist(uLat,uLng,a.lat,a.lng)-calcDist(uLat,uLng,b.lat,b.lng));
+
+    renderList();
+    renderMarks(getFiltered());
+    setSta(`✅ 找到 ${stores.length} 間超商`);
+    setTimeout(()=>setSta(''),3000);
+
+  } catch(e) {
+    console.error('All Overpass endpoints failed:', e);
+    showErr(true);
+    setSta('❌ 無法連線');
+    document.getElementById('sc').textContent='—';
+    document.getElementById('sl').innerHTML=
+      '<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">❌ 搜尋失敗<br><small>請點右上角 🔄 重試</small></div>';
+  }
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────────────
+const getFiltered = ()=> filter==='all' ? stores : stores.filter(s=>s.chain===filter);
+
+// ── RENDER LIST ───────────────────────────────────────────────────────────────
+function renderList() {
+  const arr = getFiltered();
+  document.getElementById('sc').textContent = arr.length+'間';
+  if(!arr.length) {
+    document.getElementById('sl').innerHTML=
+      '<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">此範圍沒有此類超商</div>';
+    renderMarks([]);
+    return;
+  }
+  document.getElementById('sl').innerHTML = arr.map(s=>{
+    const d=uLat?calcDist(uLat,uLng,s.lat,s.lng):null;
+    const c=CHAINS[s.chain];
+    // 修正 Google 導航網址
+    const nav=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking`;
+    return `<div class="si${sel===s.id?' sel':''}" data-id="${s.id}">
+      <div class="sic ${c.cls}">${c.em}</div>
+      <div class="inf">
+        <div class="nm">${s.name}</div>
+        <div class="mt">
+          <span style="color:${c.color};font-size:10px;font-weight:700">${c.label}</span>
+          ${d?`<span>·</span><span>📍${fmtD(d)}</span>`:''}
+        </div>
+      </div>
+      <a class="na" href="${nav}" target="_blank" rel="noopener" title="導航" onclick="event.stopPropagation()">→</a>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.si').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const s=stores.find(x=>x.id==el.dataset.id);
+      if(s) selectStore(s);
+    });
+  });
+}
+
+// ── MARKERS ───────────────────────────────────────────────────────────────────
+function mkIco(chain,big=false) {
+  const c=CHAINS[chain], sz=big?44:36, r=big?'13px':'9px';
+  const glow=big?`0 0 20px ${c.color}70`:`0 0 8px ${c.color}40`;
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${sz}px;height:${sz}px;background:${c.bg};
+          border:2px solid ${c.color};border-radius:${r};
+          display:flex;align-items:center;justify-content:center;
+          color:${c.color};font-size:${chain==='ok'?'8px':'11px'};font-weight:900;
+          font-family:'Noto Sans TC',sans-serif;box-shadow:${glow};
+          backdrop-filter:blur(4px)">${c.em}</div>`,
+    iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]
+  });
+}
+
+function renderMarks(arr) {
+  Object.values(marks).forEach(m=>m.remove()); marks={};
+  arr.forEach(s=>{
+    const m=L.marker([s.lat,s.lng],{icon:mkIco(s.chain)}).addTo(map);
+    m.on('click',e=>{L.DomEvent.stopPropagation(e);selectStore(s);});
+    marks[s.id]=m;
+  });
+}
+
+// ── SELECT ────────────────────────────────────────────────────────────────────
+function selectStore(s) {
+  sel=s.id; renderList();
+  Object.entries(marks).forEach(([id,m])=>{
+    const st=stores.find(x=>x.id==id);
+    if(st) m.setIcon(mkIco(st.chain,id==s.id));
+  });
+  map.panTo([s.lat,s.lng],{animate:true});
+  openPop(s);
+}
+
+// ── POPUP ─────────────────────────────────────────────────────────────────────
+function openPop(s) {
+  const c=CHAINS[s.chain], d=uLat?calcDist(uLat,uLng,s.lat,s.lng):null;
+  const bg=document.getElementById('pbg');
+  bg.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:${c.color};display:inline-block;margin-right:4px"></span>${c.label}${d?' · 距您'+fmtD(d):''}`;
+  bg.style.cssText=`background:${c.bg};color:${c.color};border:1px solid ${c.border};display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:10px;letter-spacing:.5px`;
+  document.getElementById('pnm').textContent=s.name;
+  document.getElementById('pad').textContent=s.address||'點擊「Google 導航」查看詳細地址';
+  // 修正 Google 導航網址
+  const g=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking`;
+  const a=`maps://maps.apple.com/?daddr=${s.lat},${s.lng}&dirflg=w`;
+  const gb=document.getElementById('bgg');
+  gb.href=g; gb.style.background=c.color; gb.style.color=s.chain==='hilife'?'#000':'#fff';
+  document.getElementById('bap').href=a;
+  document.getElementById('pop').classList.add('show');
+}
+
+function closePop() {
+  document.getElementById('pop').classList.remove('show');
+  sel=null; renderList();
+  Object.entries(marks).forEach(([id,m])=>{
+    const st=stores.find(x=>x.id==id);
+    if(st) m.setIcon(mkIco(st.chain,false));
+  });
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.fb').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.fb').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); filter=b.dataset.c;
+  closePop(); renderList(); renderMarks(getFiltered());
+}));
+document.getElementById('blc').addEventListener('click',()=>{if(uLat)map.setView([uLat,uLng],16,{animate:true})});
+document.getElementById('brf').addEventListener('click',fetchStores);
+document.getElementById('pcl').addEventListener('click',closePop);
+document.getElementById('err-retry').addEventListener('click',fetchStores);
+
+let rt;
+document.getElementById('rs').addEventListener('input',e=>{
+  radius=parseInt(e.target.value);
+  document.getElementById('rv').textContent=radius>=1000?(radius/1000).toFixed(1)+'km':radius+'m';
+  clearTimeout(rt); rt=setTimeout(fetchStores,800);
+});
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+function hideLd() {
+  const el=document.getElementById('ld');
+  el.classList.add('done'); setTimeout(()=>el.remove(),500);
+}
+
+const ltxt = document.getElementById('ltxt');
+
+if(!navigator.geolocation) {
+  ltxt.textContent='瀏覽器不支援定位，使用預設位置';
+  setTimeout(()=>{
+    uLat=23.5515; uLng=120.4300; // 預設改為嘉義民雄
+    initMap(uLat,uLng); hideLd(); fetchStores();
+  },800);
+} else {
+  ltxt.textContent='請允許瀏覽器存取您的位置…';
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      uLat=pos.coords.latitude; uLng=pos.coords.longitude;
+      initMap(uLat,uLng); hideLd(); fetchStores();
+    },
+    err=>{
+      console.warn('Geolocation error:',err.message);
+      ltxt.textContent='定位失敗，使用預設位置';
+      setTimeout(()=>{
+        uLat=23.5515; uLng=120.4300; // 預設改為嘉義民雄
+        initMap(uLat,uLng); hideLd(); fetchStores();
+      },1000);
+    },
+    {enableHighAccuracy:true, timeout:5000, maximumAge:60000} // timeout 改為 5 秒
+  );
+}
+</script>
+</body>
+</html>
